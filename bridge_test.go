@@ -31,6 +31,15 @@ const ContactSensorTemplate = `
 			}
 		}`
 
+func fileSize(path string) (int64, error) {
+	fi, err := os.Stat(path)
+	sz := int64(0)
+	if err == nil {
+		sz = fi.Size()
+	}
+	return sz, err
+}
+
 func TestBridgePersistState(t *testing.T) {
 	dir, err := os.MkdirTemp("", "hapz2m-bridge*")
 	if err != nil {
@@ -62,6 +71,27 @@ func TestBridgePersistState(t *testing.T) {
 	t.Logf("persisting state")
 	if err := b.saveZ2MState(); err != nil {
 		t.Errorf("can't persist state: %v", err)
+	}
+
+	storeFname := dir + string(os.PathSeparator) + Z2M_STATE_STORE
+
+	if sz, err := fileSize(storeFname); err == nil && sz != 0 {
+		t.Errorf("expecting defaults to not be persisted, but got size %d, err %v", sz, err)
+	}
+
+	// alter sensor states to non-defaults
+	for _, dev := range b.devices {
+		dev.Mappings["contact"].Characteristic.Val = 1
+	}
+
+	// save 2 devices, again
+	t.Logf("persisting state with non-defaults")
+	if err := b.saveZ2MState(); err != nil {
+		t.Errorf("can't persist state: %v", err)
+	}
+
+	if sz, err := fileSize(storeFname); err != nil || sz == 0 {
+		t.Errorf("expecting state to be persisted, but got size %d, err %v", sz, err)
 	}
 
 	// re-create with less devices

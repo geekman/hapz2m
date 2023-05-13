@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -196,6 +197,11 @@ func (br *Bridge) saveZ2MState() error {
 		devState := make(map[string]any)
 
 		for prop, mapping := range dev.Mappings {
+			// don't bother persisting property if it is "zero"
+			if reflect.ValueOf(mapping.Characteristic.Val).IsZero() {
+				continue
+			}
+
 			v, err := mapping.ToExposedValue(mapping.Characteristic.Val)
 			if err != nil {
 				return err
@@ -205,12 +211,19 @@ func (br *Bridge) saveZ2MState() error {
 		}
 
 		// serialize into JSON
-		jsonState, err := json.Marshal(devState)
-		if err != nil {
-			return err
-		}
+		if len(devState) > 0 {
+			jsonState, err := json.Marshal(devState)
+			if err != nil {
+				return err
+			}
 
-		devices[name] = jsonState
+			devices[name] = jsonState
+		}
+	}
+
+	// return early if there was nothing to persist
+	if len(devices) == 0 {
+		return nil
 	}
 
 	allJson, err := json.Marshal(devices)
