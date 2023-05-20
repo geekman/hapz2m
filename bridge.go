@@ -32,6 +32,9 @@ const (
 
 	// timeout for UpdateZ2MState
 	Z2M_UPDATE_TIMEOUT = 3 * time.Second
+
+	// timeout for marking devices as non-responsive
+	Z2M_LAST_SEEN_TIMEOUT = 24 * time.Hour
 )
 
 const BRIDGE_DEBUG = false
@@ -64,6 +67,7 @@ type BridgeDevice struct {
 	Device    *Device
 	Accessory *accessory.A
 	Mappings  map[string]*ExposeMapping
+	LastSeen  time.Time
 }
 
 // Creates and initializes a Bridge.
@@ -179,6 +183,25 @@ func (br *Bridge) loadZ2MState(m *sync.Map) error {
 	}
 
 	for k, v := range stateMap {
+		// add a last_seen timestamp for saved states without one
+		var devState map[string]any
+		err = json.Unmarshal(v, &devState)
+		if err != nil {
+			log.Printf("cannot unmarshal device %s JSON: %v", k, err)
+			continue
+		}
+		if _, hasLastSeen := devState["last_seen"]; !hasLastSeen {
+			devState["last_seen"] = time.Now().Add(-Z2M_LAST_SEEN_TIMEOUT)
+
+			// re-marshal the JSON
+			newJson, err := json.Marshal(devState)
+			if err == nil {
+				v = newJson
+			} else {
+				log.Printf("cannot re-marshal JSON state after adding last_seen for %s: %v", k, err)
+			}
+		}
+
 		// LoadOrStore retains existing data, only storing if empty
 		if _, exists := m.LoadOrStore(k, v); exists {
 			log.Printf("skipping %s, newer data is available", k)
@@ -211,7 +234,10 @@ func (br *Bridge) saveZ2MState() error {
 		}
 
 		// serialize into JSON
-		if len(devState) > 0 {
+		lastSeenSince := time.Since(dev.LastSeen)
+		if len(devState) > 0 || lastSeenSince < Z2M_LAST_SEEN_TIMEOUT {
+			devState["last_seen"] = dev.LastSeen.Unix() * 1000 // timestamp in millis
+
 			jsonState, err := json.Marshal(devState)
 			if err != nil {
 				return err
@@ -366,6 +392,8 @@ func (br *Bridge) AddDevice(dev *Device, acc *accessory.A, mappings []*ExposeMap
 		em[prop] = m
 	}
 
+	brdev := &BridgeDevice{dev, acc, em, time.Date(2000, 01, 01, 23, 59, 00, 0, time.Local)}
+
 	// wire up accessory's remote value update functions
 	for _, m := range mappings {
 		m := m
@@ -384,7 +412,7 @@ func (br *Bridge) AddDevice(dev *Device, acc *accessory.A, mappings []*ExposeMap
 		}
 	}
 
-	br.devices[name] = &BridgeDevice{dev, acc, em}
+	br.devices[name] = brdev
 	return nil
 }
 
@@ -480,6 +508,28 @@ func (br *Bridge) UpdateAccessoryState(devName string, payload []byte) {
 	if err != nil {
 		log.Printf("unable to parse JSON payload: %v", err)
 		return
+	}
+
+	lastSeen := time.Now()
+	if lastSeenProp, found := newState["last_seen"]; found {
+		switch v := lastSeenProp.(type) {
+		case float64:
+			lastSeen = time.Unix(int64(v/1000), 0)
+		case string:
+			if lastSeenDate, err := time.Parse(time.RFC3339, v); err == nil {
+				lastSeen = lastSeenDate
+			} else {
+				log.Printf("invalid last_seen timestamp %v", v)
+			}
+		default:
+			log.Printf("invalid last_seen %T %[1]v", v)
+		}
+	}
+
+	// update LastSeen only if it was valid
+	if lastSeen.After(dev.LastSeen) {
+		//log.Printf("updating last seen for %s to %s", devName, lastSeen)
+		dev.LastSeen = lastSeen
 	}
 
 	for prop, mapping := range dev.Mappings {
