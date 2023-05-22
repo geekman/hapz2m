@@ -410,6 +410,17 @@ func (br *Bridge) AddDevice(dev *Device, acc *accessory.A, mappings []*ExposeMap
 				return nil, 0
 			}
 		}
+
+		m.Characteristic.ValueRequestFunc = func(req *http.Request) (any, int) {
+			lastSeenSince := time.Since(brdev.LastSeen)
+
+			errCode := 0
+			if lastSeenSince >= Z2M_LAST_SEEN_TIMEOUT {
+				//log.Printf("dev %s last seen too long ago", name)
+				errCode = hap.JsonStatusServiceCommunicationFailure
+			}
+			return m.Characteristic.Val, errCode
+		}
 	}
 
 	br.devices[name] = brdev

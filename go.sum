@@ -1,9 +1,7 @@
-github.com/brutella/dnssd v1.2.6 h1:/0P13JkHLRzeLQkWRPEn4hJCr4T3NfknIFw3aNPIC34=
-github.com/brutella/dnssd v1.2.6/go.mod h1:JoW2sJUrmVIef25G6lrLj7HS6Xdwh6q8WUIvMkkBYXs=
-github.com/brutella/hap v0.0.26-0.20230413145315-4d1fbc179bbb h1:Pfh+FPHinTvHjGjvf3xW+IrJl+FL1tAZOlW2l2sWQ2g=
-github.com/brutella/hap v0.0.26-0.20230413145315-4d1fbc179bbb/go.mod h1:jq5zNqV0/sUSWnYQ9hBUDDXGfBiZJm1TtnptNw02PfI=
-github.com/brutella/hap v0.0.26-0.20230424071335-4329b4fdc1c4 h1:9PsfodvGUvuN15W6lkaeJOl1pegGNcgcgp3F0kRWS5M=
-github.com/brutella/hap v0.0.26-0.20230424071335-4329b4fdc1c4/go.mod h1:jq5zNqV0/sUSWnYQ9hBUDDXGfBiZJm1TtnptNw02PfI=
+github.com/brutella/dnssd v1.2.7 h1:Uq2NgLzlUz5JWIzcug9xRU6v0UApHrlxbsREA5B1RrY=
+github.com/brutella/dnssd v1.2.7/go.mod h1:JoW2sJUrmVIef25G6lrLj7HS6Xdwh6q8WUIvMkkBYXs=
+github.com/brutella/hap v0.0.27-0.20230522083132-4ea1de40019c h1:gLVgwrHzMZUn0d1SfAFvsCfHWF12pstyS1erpUE/GZ0=
+github.com/brutella/hap v0.0.27-0.20230522083132-4ea1de40019c/go.mod h1:ilKzdnapk5SjRrhedSW1+IMlMCt5P4hR91jlIap33x4=
 github.com/davecgh/go-spew v1.1.0 h1:ZDRjVQ15GmhC3fiQ8ni8+OwkZQO4DARzQgrnXU1Liz8=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/eclipse/paho.mqtt.golang v1.4.2 h1:66wOzfUHSSI1zamx7jR6yMEI5EuHnT1G6rNA5PM12m4=
