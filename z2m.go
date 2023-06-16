@@ -354,7 +354,7 @@ type ExposesEntry struct {
 	Features []ExposesEntry `json:"features"`
 
 	// values
-	Values []string `json:"values"`
+	Values []any `json:"values"`
 
 	ValueOn  any `json:"value_on"`
 	ValueOff any `json:"value_off"`
