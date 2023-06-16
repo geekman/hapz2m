@@ -13,6 +13,7 @@ Currently only supports the types of Zigbee devices I have:
 
 - Climate sensors (temp, humidity)
 - Contact sensors
+- Motion sensors
 - Wall switch
 
 If you do use this software, note that it's in development and may contains bugs,
