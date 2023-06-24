@@ -15,6 +15,7 @@ Currently only supports the types of Zigbee devices I have:
 - Contact sensors
 - Motion sensors
 - Wall switch
+- Dimmer, or dimmable light bulbs
 
 If you do use this software, note that it's in development and may contains bugs,
 or may even burn your house down. I offer no warranty, but you are welcome to file bugs.

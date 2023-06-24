@@ -124,6 +124,17 @@ func createAccessory(dev *Device) (*accessory.A, []*ExposeMapping, error) {
 			continue
 		}
 
+		// if it's a percentage, then don't copy
+		if e.Characteristic.Unit == characteristic.UnitPercentage {
+			// assign a PercentageTranslator here, if there wasn't already
+			if e.Translator == nil && e.ExposesEntry.IsSettable() &&
+				e.ExposesEntry.ValueMin != nil && e.ExposesEntry.ValueMax != nil {
+
+				e.Translator = &PercentageTranslator{*e.ExposesEntry.ValueMin, *e.ExposesEntry.ValueMax}
+			}
+			continue
+		}
+
 		err := e.ExposesEntry.CopyValueRanges(e.Characteristic)
 		if err != nil {
 			return nil, nil, fmt.Errorf("cant copy value ranges for %s to cfmt %s: %s",
@@ -221,6 +232,42 @@ func (t *BoolTranslator) ToCharacteristicValue(eVal any) (any, error) {
 		return t.TrueValue, nil
 	}
 	return t.FalseValue, nil
+}
+
+// Translates a numeric type exposed value to percentage Characteristic values
+type PercentageTranslator struct{ Min, Max float64 }
+
+func (t *PercentageTranslator) ToExposedValue(cVal any) (any, error) {
+	cVal2, ok := valToFloat64(cVal)
+	if !ok {
+		return nil, ErrTranslationError
+	}
+	v := t.Min + (cVal2 / 100. * (t.Max - t.Min))
+	return v, nil
+}
+
+func (t *PercentageTranslator) ToCharacteristicValue(eVal any) (any, error) {
+	eVal2, ok := valToFloat64(eVal)
+	if !ok {
+		return nil, ErrTranslationError
+	}
+	v := (eVal2 - t.Min) * 100. / (t.Max - t.Min)
+	return v, nil
+}
+
+// Converts numeric values to float64, if possible
+// Returns the converted float64 value and a bool indicating if it was successful.
+func valToFloat64(v any) (float64, bool) {
+	val := reflect.ValueOf(v)
+	switch {
+	case val.CanInt():
+		return float64(val.Int()), true
+	case val.CanUint():
+		return float64(val.Uint()), true
+	case val.CanFloat():
+		return val.Float(), true
+	}
+	return 0, false
 }
 
 //////////////////////////////
