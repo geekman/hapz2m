@@ -466,7 +466,10 @@ wait:
 			if BRIDGE_DEBUG {
 				log.Printf("received value %q (expected %q) for %s", updatedVal, expVal, key)
 			}
-			if updatedVal == expVal {
+			if updatedVal == expVal ||
+				// updatedVal is float64 coz that's how Z2M JSON values are, but expVal may not be
+				mapping.ExposesEntry.Type == "numeric" && cmpFloat64Numeric(updatedVal, expVal) {
+
 				updated = true
 				break wait
 			}
@@ -483,6 +486,17 @@ wait:
 		err = ErrUpdateTimeout
 	}
 	return updated, err
+}
+
+// Compare float64 f to numeric value n
+// Both parameters are marked as `any`. f will be type-asserted to float64,
+// whereas n will be converted to float64 before doing the comparison.
+func cmpFloat64Numeric(f, n any) bool {
+	if ff, ok := f.(float64); ok {
+		nn, ok := valToFloat64(n)
+		return ff == nn && ok
+	}
+	return false
 }
 
 // Publish to the MQTT broker for the specific device
