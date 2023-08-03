@@ -66,6 +66,11 @@ func parseConfig(fname string) (cfg *config, err error) {
 func main() {
 	flag.Parse()
 
+	// check if we are running under systemd, and if so, dont output timestamps
+	if a, b := os.Getenv("INVOCATION_ID"), os.Getenv("JOURNAL_STREAM"); a != "" && b != "" {
+		log.SetFlags(0)
+	}
+
 	cfg, err := parseConfig(*configFile)
 	if err != nil {
 		log.Fatalf("config file error: %v", err)
