@@ -28,6 +28,25 @@ To compile `hap-z2m`, use:
 
     go build -v -trimpath -ldflags="-s -w" ./cmd/...
 
+Configuration
+==============
+
+The MQTT broker that Zigbee2MQTT connects to is specified using the following:
+
+- Server
+- Username
+- Password
+
+Additionally, these options control networking aspects for the bridge:
+
+- `ListenAddr` can be used to bind to a specific port and/or address, 
+  useful for selecting a fixed port for firewall rules.
+
+- `Interfaces` limit which interfaces mDNS broadcasts appear on, 
+  and which addresses to use when broadcasting.
+
+These settings are optional and can be left blank.
+
 License
 ========
 

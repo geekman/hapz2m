@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -29,7 +30,11 @@ var (
 	debugMode  = flag.Bool("debug", false, "enable debug messages")
 )
 
+// config struct
 type config struct {
+	ListenAddr string
+	Interfaces []string
+
 	Server, Username, Password string
 }
 
@@ -72,6 +77,17 @@ func main() {
 	br.Username = cfg.Username
 	br.Password = cfg.Password
 	br.DebugMode = *debugMode
+
+	// validate ListenAddr if specified
+	if cfg.ListenAddr != "" {
+		_, _, err := net.SplitHostPort(cfg.ListenAddr)
+		if err != nil {
+			log.Fatalf("invalid ListenAddr: %v", err)
+		}
+		br.ListenAddr = cfg.ListenAddr
+	}
+
+	br.Interfaces = cfg.Interfaces
 
 	err = br.ConnectMQTT()
 	if err != nil {

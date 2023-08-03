@@ -51,6 +51,10 @@ type Bridge struct {
 	Username string
 	Password string
 
+	// address and interfaces to bind to
+	ListenAddr string
+	Interfaces []string
+
 	DebugMode bool
 
 	ctx       context.Context
@@ -117,6 +121,9 @@ func (br *Bridge) StartHAP() error {
 	if err != nil {
 		return err
 	}
+
+	br.server.Addr = br.ListenAddr
+	br.server.Ifaces = br.Interfaces
 
 	if br.DebugMode {
 		haplog.Debug.Enable()
