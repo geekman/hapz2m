@@ -1,0 +1,26 @@
+[Unit]
+Description=HomeKit to Zigbee2MQTT Bridge
+After=network.target
+
+[Install]
+WantedBy=multi-user.target
+
+[Service]
+Type=exec
+ExecStart=/usr/bin/hapz2m -quiet -config /var/lib/hapz2m/hapz2m.conf -db /var/lib/hapz2m/db
+PrivateDevices=yes
+PrivateTmp=yes
+NoNewPrivileges=yes
+ProtectSystem=full
+ProtectHome=yes
+RestrictNamespaces=yes
+ProtectControlGroups=yes
+ProtectKernelModules=yes
+ProtectKernelTunables=yes
+
+# hack for DynamicUser readable config file, systemd < 251
+# see https://github.com/systemd/systemd/issues/16060#issuecomment-964168566
+DynamicUser=yes
+StateDirectory=hapz2m
+ExecStartPre=+bash -c "install -p -m 0660 -o $(stat -L -c %%u /var/lib/hapz2m) -t /var/lib/hapz2m/ /etc/hapz2m.conf"
+
