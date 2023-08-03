@@ -28,6 +28,7 @@ var (
 	configFile = flag.String("config", "/etc/hapz2m.conf", "config file")
 	dbPath     = flag.String("db", "/var/lib/hapz2m", "db path")
 	debugMode  = flag.Bool("debug", false, "enable debug messages")
+	quietMode  = flag.Bool("quiet", false, "reduce verbosity by not showing received upates")
 )
 
 // config struct
@@ -77,6 +78,11 @@ func main() {
 	br.Username = cfg.Username
 	br.Password = cfg.Password
 	br.DebugMode = *debugMode
+	br.QuietMode = *quietMode
+
+	if *debugMode && *quietMode {
+		log.Fatalf("-quiet and -debug options are mutually-exclusive")
+	}
 
 	// validate ListenAddr if specified
 	if cfg.ListenAddr != "" {

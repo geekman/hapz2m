@@ -56,6 +56,7 @@ type Bridge struct {
 	Interfaces []string
 
 	DebugMode bool
+	QuietMode bool
 
 	ctx       context.Context
 	bridgeAcc *accessory.Bridge
@@ -561,7 +562,7 @@ func (br *Bridge) UpdateAccessoryState(devName string, payload []byte) {
 		return
 	}
 
-	if br.DebugMode || time.Since(dev.LastSeen) > 30*time.Second {
+	if br.DebugMode || (!br.QuietMode && time.Since(dev.LastSeen) > 30*time.Second) {
 		log.Printf("received update for device %q", devName)
 	}
 
