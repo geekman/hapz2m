@@ -26,7 +26,7 @@ var (
 
 var (
 	configFile = flag.String("config", "/etc/hapz2m.conf", "config file")
-	dbPath     = flag.String("db", "/var/lib/hapz2m", "db path")
+	dbPath     = flag.String("db", "/var/lib/hapz2m/db", "db path")
 	debugMode  = flag.Bool("debug", false, "enable debug messages")
 	quietMode  = flag.Bool("quiet", false, "reduce verbosity by not showing received upates")
 )
