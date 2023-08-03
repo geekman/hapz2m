@@ -4,7 +4,12 @@ import (
 	"github.com/brutella/hap"
 	"github.com/brutella/hap/accessory"
 
+	haplog "github.com/brutella/hap/log"
+
 	mqtt "github.com/eclipse/paho.mqtt.golang"
+
+	"crypto/tls"
+	"net/url"
 
 	"context"
 	"encoding/json"
@@ -37,13 +42,16 @@ const (
 	Z2M_LAST_SEEN_TIMEOUT = 24 * time.Hour
 )
 
-const BRIDGE_DEBUG = false
+// show more messages for developers
+const BRIDGE_DEVMODE = false
 
 type Bridge struct {
 	// MQTT broker and credentials
 	Server   string
 	Username string
 	Password string
+
+	DebugMode bool
 
 	ctx       context.Context
 	bridgeAcc *accessory.Bridge
@@ -110,6 +118,10 @@ func (br *Bridge) StartHAP() error {
 		return err
 	}
 
+	if br.DebugMode {
+		haplog.Debug.Enable()
+	}
+
 	err = br.server.ListenAndServe(br.ctx)
 
 	// disconnect from MQTT
@@ -158,6 +170,11 @@ func (br *Bridge) ConnectMQTT() error {
 		log.Printf("subscribed to MQTT topic")
 	})
 
+	opts.SetConnectionAttemptHandler(func(broker *url.URL, cfg *tls.Config) *tls.Config {
+		log.Printf("connecting to MQTT %s...", broker)
+		return cfg
+	})
+
 	br.mqttClient = mqtt.NewClient(opts)
 
 	if tok := br.mqttClient.Connect(); tok.Wait() && tok.Error() != nil {
@@ -183,6 +200,10 @@ func (br *Bridge) loadZ2MState(m *sync.Map) error {
 	}
 
 	for k, v := range stateMap {
+		if BRIDGE_DEVMODE {
+			log.Printf("%s %s\n", k, v)
+		}
+
 		// add a last_seen timestamp for saved states without one
 		var devState map[string]any
 		err = json.Unmarshal(v, &devState)
@@ -263,8 +284,6 @@ func (br *Bridge) saveZ2MState() error {
 func (br *Bridge) handleMqttMessage(_ mqtt.Client, msg mqtt.Message) {
 	topic, payload := msg.Topic(), msg.Payload()
 
-	//log.Printf("received %s %s", topic, payload)
-
 	// check for topic prefix and remove it
 	l := len(MQTT_TOPIC_PREFIX)
 	if len(topic) <= l || topic[:l] != MQTT_TOPIC_PREFIX {
@@ -288,12 +307,18 @@ func (br *Bridge) handleMqttMessage(_ mqtt.Client, msg mqtt.Message) {
 
 	// spawn a goroutine to handle message, since mutex might block
 	go func() {
+		if br.DebugMode {
+			log.Printf("received %s: %s", topic, payload)
+		}
+
 		br.hapInitMutex.RLock()
 		defer br.hapInitMutex.RUnlock()
 
+		isBridgeTopic := strings.HasPrefix(topic, "bridge/")
+
 		// check if HAP bridge device has been initialized
 		if !br.hapInitDone {
-			if strings.HasPrefix(topic, "bridge/") {
+			if isBridgeTopic {
 				// need to look out for bridge/devices for intiial setup
 				if topic == "bridge/devices" {
 					err := br.AddDevicesFromJSON(payload)
@@ -332,7 +357,7 @@ func (br *Bridge) handleMqttMessage(_ mqtt.Client, msg mqtt.Message) {
 				log.Printf("queueing updates for %s", topic)
 				br.pendingUpdates.Store(topic, payload)
 			}
-		} else {
+		} else if !isBridgeTopic {
 			br.UpdateAccessoryState(topic, payload)
 		}
 	}()
@@ -456,14 +481,16 @@ func (br *Bridge) UpdateZ2MState(dev *Device, mapping *ExposeMapping, newVal any
 	ctx, cancel := context.WithTimeout(br.ctx, Z2M_UPDATE_TIMEOUT)
 	defer cancel()
 
-	log.Printf("updating Z2M state %q -> %+v", prop, expVal)
+	if br.DebugMode {
+		log.Printf("updating Z2M state %q -> %+v", prop, expVal)
+	}
 	br.PublishState(dev, map[string]any{prop: expVal})
 
 wait:
 	for {
 		select {
 		case updatedVal := <-ch:
-			if BRIDGE_DEBUG {
+			if BRIDGE_DEVMODE {
 				log.Printf("received value %q (expected %q) for %s", updatedVal, expVal, key)
 			}
 			if updatedVal == expVal ||
@@ -507,8 +534,8 @@ func (br *Bridge) PublishState(dev *Device, payload map[string]any) error {
 		return err
 	}
 
-	if BRIDGE_DEBUG {
-		log.Printf("publishing %q payload %s", topic, jsonPayload)
+	if br.DebugMode {
+		log.Printf("publishing %s: %s", topic, jsonPayload)
 	}
 
 	br.mqttClient.Publish(topic, 0, false, jsonPayload)
@@ -519,12 +546,15 @@ func (br *Bridge) PublishState(dev *Device, payload map[string]any) error {
 func (br *Bridge) UpdateAccessoryState(devName string, payload []byte) {
 	dev := br.devices[devName]
 	if dev == nil {
+		if br.DebugMode || BRIDGE_DEVMODE {
+			log.Printf("unknown device %q", devName)
+		}
+
 		// skip unknown device
-		//log.Printf("unknown device %q", devName)
 		return
 	}
 
-	if BRIDGE_DEBUG {
+	if br.DebugMode || time.Since(dev.LastSeen) > 30*time.Second {
 		log.Printf("received update for device %q", devName)
 	}
 
@@ -567,7 +597,7 @@ func (br *Bridge) UpdateAccessoryState(devName string, payload []byte) {
 		if mapping.ExposesEntry.IsSettable() {
 			updateKey := makeUpdateKey(dev.Device, mapping)
 			if ch, waiting := br.updateListeners.Load(updateKey); waiting {
-				if BRIDGE_DEBUG {
+				if BRIDGE_DEVMODE {
 					log.Printf("sending new value for %q via chan", updateKey)
 				}
 				select {
@@ -582,7 +612,7 @@ func (br *Bridge) UpdateAccessoryState(devName string, payload []byte) {
 		}
 
 		// update value into Characteristic
-		if BRIDGE_DEBUG {
+		if BRIDGE_DEVMODE {
 			log.Printf("updating %q to %+v", prop, newVal)
 		}
 		_, errCode := mapping.SetCharacteristicValue(newVal)

@@ -13,7 +13,8 @@ import (
 	"github.com/brutella/hap/service"
 )
 
-const Z2M_DEBUG = false
+// show more messages for developers
+const Z2M_DEVMODE = false
 
 // exposed properties to ignore
 var IgnoreProperties = map[string]bool{
@@ -47,7 +48,7 @@ func createAccessory(dev *Device) (*accessory.A, []*ExposeMapping, error) {
 		return nil, nil, ErrMalfomedDevice
 	}
 
-	if Z2M_DEBUG {
+	if Z2M_DEVMODE {
 		fmt.Printf("%s %s %d\n", dev.Definition.Model, dev.Definition.Vendor, dev.NetworkAddress)
 		for _, exp := range dev.Definition.Exposes {
 			ignored := ""
@@ -90,7 +91,7 @@ func createAccessory(dev *Device) (*accessory.A, []*ExposeMapping, error) {
 			panic(err)
 		}
 
-		if Z2M_DEBUG {
+		if Z2M_DEVMODE {
 			f := runtime.FuncForPC(reflect.ValueOf(createFunc).Pointer())
 			fmt.Printf("----- %s -----\n", f.Name())
 

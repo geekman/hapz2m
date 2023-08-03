@@ -26,6 +26,7 @@ var (
 var (
 	configFile = flag.String("config", "/etc/hapz2m.conf", "config file")
 	dbPath     = flag.String("db", "/var/lib/hapz2m", "db path")
+	debugMode  = flag.Bool("debug", false, "enable debug messages")
 )
 
 type config struct {
@@ -70,6 +71,7 @@ func main() {
 	br.Server = cfg.Server
 	br.Username = cfg.Username
 	br.Password = cfg.Password
+	br.DebugMode = *debugMode
 
 	err = br.ConnectMQTT()
 	if err != nil {
