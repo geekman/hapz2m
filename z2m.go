@@ -422,8 +422,10 @@ type ExposesEntry struct {
 func (e *ExposesEntry) Ignored() bool { return IgnoreProperties[e.Name] }
 
 // https://github.com/Koenkk/zigbee-herdsman-converters/blob/v15.0.0/lib/exposes.js#L458-L486
-func (e *ExposesEntry) IsStateSetGet() bool { return e.Access == 0b111 }
-func (e *ExposesEntry) IsSettable() bool    { return e.Access&0b10 == 0b10 }
+func (e *ExposesEntry) IsStateSetGet() bool         { return e.Access == 0b111 }
+func (e *ExposesEntry) IsStateSettable() bool       { return e.hasAccessBits(0b11) }
+func (e *ExposesEntry) IsSettable() bool            { return e.hasAccessBits(0b10) }
+func (e *ExposesEntry) hasAccessBits(bits int) bool { return e.Access&bits == bits }
 
 // Updates MinVal, MaxVal and StepVal for the Characteristic
 func (e *ExposesEntry) CopyValueRanges(c *characteristic.C) error {

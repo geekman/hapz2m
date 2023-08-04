@@ -22,7 +22,7 @@ func createLightServices(dev *Device) (byte, []*service.S, []*ExposeMapping, err
 			light := service.NewLightbulb()
 
 			for _, feat := range exp.Features {
-				if !feat.IsStateSetGet() {
+				if !feat.IsStateSettable() {
 					continue
 				}
 
