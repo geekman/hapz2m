@@ -23,8 +23,9 @@ var IgnoreProperties = map[string]bool{
 }
 
 var (
-	ErrDeviceSkipped  = fmt.Errorf("device is skipped")
-	ErrMalfomedDevice = fmt.Errorf("device is malformed")
+	ErrDeviceSkipped     = fmt.Errorf("device is skipped")
+	ErrMalfomedDevice    = fmt.Errorf("device is malformed")
+	ErrUnknownDeviceType = fmt.Errorf("device type is unknown")
 
 	ErrNotNumericCharacteristic = fmt.Errorf("characteristic is non-numeric")
 )
@@ -117,6 +118,11 @@ func createAccessory(dev *Device) (*accessory.A, []*ExposeMapping, error) {
 
 		allSvcs = append(allSvcs, svcs...)
 		allExposes = append(allExposes, exposes...)
+	}
+
+	// if no Exposes entry was processed, return error
+	if len(allExposes) == 0 {
+		return nil, nil, ErrUnknownDeviceType
 	}
 
 	// copy value ranges
@@ -316,6 +322,7 @@ func (m *ExposeMapping) ToExposedValue(v any) (any, error) {
 			expVal = m.ExposesEntry.ValueOn
 		}
 	}
+
 	return expVal, err
 }
 

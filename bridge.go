@@ -393,7 +393,7 @@ func (br *Bridge) AddDevicesFromJSON(devJson []byte) error {
 
 		acc, exp, err := createAccessory(&dev)
 		if err != nil {
-			if err == ErrDeviceSkipped {
+			if err == ErrDeviceSkipped || err == ErrUnknownDeviceType {
 				continue
 			}
 			return err
