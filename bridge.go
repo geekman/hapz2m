@@ -15,6 +15,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"reflect"
 	"strings"
@@ -163,6 +164,7 @@ func (br *Bridge) ConnectMQTT() error {
 		SetUsername(br.Username).
 		SetPassword(br.Password).
 		SetClientID("hap-z2m").
+		SetDialer(&net.Dialer{KeepAlive: -1}).
 		SetKeepAlive(60 * time.Second).
 		SetPingTimeout(2 * time.Second).
 		SetConnectRetry(true)

@@ -3,7 +3,7 @@ module hapz2m
 go 1.20
 
 require (
-	github.com/brutella/hap v0.0.27-0.20230522083132-4ea1de40019c
+	github.com/brutella/hap v0.0.27-0.20230808074808-04622f35422f
 	github.com/eclipse/paho.mqtt.golang v1.4.2
 )
 
