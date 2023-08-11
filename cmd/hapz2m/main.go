@@ -36,6 +36,8 @@ type config struct {
 	ListenAddr string
 	Interfaces []string
 
+	Pin string
+
 	Server, Username, Password string
 }
 
@@ -89,6 +91,10 @@ func main() {
 		log.Fatalf("-quiet and -debug options are mutually-exclusive")
 	}
 
+	if _, err := br.SetPin(cfg.Pin); err != nil {
+		log.Fatalf("cannot set PIN code: %v", err)
+	}
+
 	// validate ListenAddr if specified
 	if cfg.ListenAddr != "" {
 		_, _, err := net.SplitHostPort(cfg.ListenAddr)
@@ -119,6 +125,9 @@ func main() {
 	br.WaitConfigured()
 
 	log.Println("hapz2m configured. starting HAP server...")
+
+	pin := br.GetPin()
+	log.Printf("server PIN is %s-%s", pin[:4], pin[4:])
 
 	err = br.StartHAP()
 	if err != nil {

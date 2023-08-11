@@ -12,9 +12,11 @@ import (
 	"net/url"
 
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"log"
+	"math/big"
 	"net"
 	"net/http"
 	"reflect"
@@ -35,6 +37,9 @@ const (
 
 	// Store name for persisting zigbee2mqtt state
 	Z2M_STATE_STORE = "z2m_state"
+
+	// Store name for server PIN code
+	Z2M_PIN_STORE = "z2m_pin"
 
 	// timeout for UpdateZ2MState
 	Z2M_UPDATE_TIMEOUT = 3 * time.Second
@@ -65,6 +70,7 @@ type Bridge struct {
 	devices map[string]*BridgeDevice
 	server  *hap.Server
 	store   hap.Store
+	pin     string
 
 	// RWMutex protects hap init variables below
 	hapInitMutex   sync.RWMutex
@@ -102,11 +108,63 @@ func NewBridge(ctx context.Context, storeDir string) *Bridge {
 	return br
 }
 
+// Sets the PIN code for the HAP server.
+// If the given pin is empty, it will be read from the store, or failing that,
+// one will be generated
+func (br *Bridge) SetPin(pin string) (string, error) {
+	// if PIN was not explicitly specified, we re-use the existing one from store
+	if pin == "" {
+		if storePin, err := br.store.Get(Z2M_PIN_STORE); err == nil {
+			pin = string(storePin)
+		}
+	}
+
+	savePin := pin == ""
+
+	if pin == "" {
+		for {
+			rnd, err := rand.Int(rand.Reader, big.NewInt(99999999+1))
+			if err != nil {
+				return "", fmt.Errorf("can't generate PIN: %v", err)
+			}
+
+			// pad if necessary
+			pin = rnd.Text(10) + "00000000"
+			pin = pin[:8]
+
+			// ensure it's not an insecure PIN
+			if !hap.InvalidPins[pin] {
+				break
+			}
+		}
+	} else if hap.InvalidPins[pin] {
+		return "", fmt.Errorf("insecure pin %s", pin)
+	}
+
+	// persist the PIN
+	if savePin {
+		br.store.Set(Z2M_PIN_STORE, []byte(pin))
+	}
+
+	br.pin = pin
+	return pin, nil
+}
+
+// Returns the PIN
+func (br *Bridge) GetPin() string { return br.pin }
+
 // Initializes the hap.Server and calls ListenAndServe().
 // ListenAndServe() will block until the context is cancelled
 func (br *Bridge) StartHAP() error {
 	if br.bridgeAcc == nil {
 		return fmt.Errorf("bridge accessory not created yet")
+	}
+
+	// initialize PIN, either from store or dynamically generated
+	if br.pin == "" {
+		if _, err := br.SetPin(""); err != nil {
+			return err
+		}
 	}
 
 	br.hapInitMutex.RLock()
@@ -123,6 +181,8 @@ func (br *Bridge) StartHAP() error {
 	if err != nil {
 		return err
 	}
+
+	br.server.Pin = br.pin
 
 	br.server.Addr = br.ListenAddr
 	br.server.Ifaces = br.Interfaces

@@ -47,6 +47,10 @@ Additionally, these options control networking aspects for the bridge:
 
 These settings are optional and can be left blank.
 
+The pairing code for the server is generated dynamically on first startup
+and printed to the console (or systemd journal). Alternatively, you can specify
+it using `Pin` in the config file to have it fixed.
+
 License
 ========
 
