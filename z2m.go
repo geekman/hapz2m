@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"strings"
 
 	"reflect"
 	"runtime"
@@ -113,8 +114,13 @@ func createAccessory(dev *Device) (*accessory.A, []*ExposeMapping, error) {
 	}
 
 	// create accessory first, then see if any handler wants to modify it
+	accName := dev.Definition.Description
+	devDesc := strings.TrimSpace(dev.Description)
+	if len(devDesc) > 0 {
+		accName = devDesc + " " + accName
+	}
 	acc := accessory.New(accessory.Info{
-		Name:         dev.Definition.Description,
+		Name:         accName,
 		SerialNumber: serialNum,
 		Manufacturer: dev.Manufacturer,
 		Model:        dev.Definition.Model,
@@ -285,6 +291,7 @@ type Device struct {
 	PowerSource        string `json:"power_source,omitempty"`
 	SoftwareBuildId    string `json:"software_build_id,omitempty"`
 	DateCode           string `json:"date_code,omitempty"`
+	Description        string `json:"description,omitempty"`
 
 	Definition *DevDefinition `json:"definition,omitempty"`
 
