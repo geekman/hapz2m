@@ -123,6 +123,10 @@ func main() {
 	}()
 
 	br.WaitConfigured()
+	if br.NumDevices() == 0 {
+		log.Println("No devices added to bridge. Refusing to start.")
+		return
+	}
 
 	log.Println("hapz2m configured. starting HAP server...")
 

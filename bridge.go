@@ -212,6 +212,11 @@ func (br *Bridge) WaitConfigured() {
 	}
 }
 
+// Return number of devices added to the bridge.
+func (br *Bridge) NumDevices() int {
+	return len(br.devices)
+}
+
 // Connects to the MQTT server.
 // Blocks until the connection is established, then auto-reconnect logic takes over
 func (br *Bridge) ConnectMQTT() error {
