@@ -30,6 +30,47 @@ var (
 	ErrNotNumericCharacteristic = fmt.Errorf("characteristic is non-numeric")
 )
 
+// Wire up the ExposeMappings and translators, where necessary
+func initExposeMappings(exposes ...*ExposeMapping) error {
+	for _, e := range exposes {
+		// assign the default translator if none was specified
+		if e.Translator == nil {
+			e.Translator = defaultTranslator
+		}
+
+		// chain a translator for ValueOn/Off translations
+		if e.ExposesEntry.Type == "binary" {
+			bt := &BoolTranslator{e.ExposesEntry.ValueOn, e.ExposesEntry.ValueOff}
+
+			// add the BoolTranslator for the exposed value
+			e.Translator = &ChainedTranslator{CharacteristicSide: e.Translator,
+				ExposedSide: &FlippedTranslator{bt}}
+		}
+
+		if e.ExposesEntry.Type != "numeric" {
+			continue
+		}
+
+		// if it's a percentage, then don't copy
+		if e.Characteristic.Unit == characteristic.UnitPercentage {
+			// assign a PercentageTranslator here, if there wasn't already
+			if e.Translator != defaultTranslator && e.ExposesEntry.IsSettable() &&
+				e.ExposesEntry.ValueMin != nil && e.ExposesEntry.ValueMax != nil {
+
+				e.Translator = &PercentageTranslator{*e.ExposesEntry.ValueMin, *e.ExposesEntry.ValueMax}
+			}
+			continue
+		}
+
+		err := e.ExposesEntry.CopyValueRanges(e.Characteristic)
+		if err != nil {
+			return fmt.Errorf("cant copy value ranges for %s to cfmt %s: %s",
+				e.ExposesEntry.Property, e.Characteristic.Type, err)
+		}
+	}
+	return nil
+}
+
 // Creates a HAP Accessory from a Z2M Device
 // It may return ErrDeviceSkipped if the device is not supported or still being interviewed.
 func createAccessory(dev *Device) (*accessory.A, []*ExposeMapping, error) {
@@ -125,29 +166,7 @@ func createAccessory(dev *Device) (*accessory.A, []*ExposeMapping, error) {
 		return nil, nil, ErrUnknownDeviceType
 	}
 
-	// copy value ranges
-	for _, e := range allExposes {
-		if e.ExposesEntry.Type != "numeric" {
-			continue
-		}
-
-		// if it's a percentage, then don't copy
-		if e.Characteristic.Unit == characteristic.UnitPercentage {
-			// assign a PercentageTranslator here, if there wasn't already
-			if e.Translator == nil && e.ExposesEntry.IsSettable() &&
-				e.ExposesEntry.ValueMin != nil && e.ExposesEntry.ValueMax != nil {
-
-				e.Translator = &PercentageTranslator{*e.ExposesEntry.ValueMin, *e.ExposesEntry.ValueMax}
-			}
-			continue
-		}
-
-		err := e.ExposesEntry.CopyValueRanges(e.Characteristic)
-		if err != nil {
-			return nil, nil, fmt.Errorf("cant copy value ranges for %s to cfmt %s: %s",
-				e.ExposesEntry.Property, e.Characteristic.Type, err)
-		}
-	}
+	initExposeMappings(allExposes...)
 
 	// guess main accessory type
 	// XXX in case of tie?
@@ -200,83 +219,6 @@ func uniq[T comparable](items []T) []T {
 	return u
 }
 
-// Implements a translator between the exposed property and Characteristic
-type MappingTranslator interface {
-	ToCharacteristicValue(exposedValue any) (cValue any, err error)
-	ToExposedValue(cValue any) (exposedValue any, err error)
-}
-
-// Default pass-through "translator", where both exposed and Characteristic
-// values are of the same or similar types.
-type PassthruTranslator struct{}
-
-var defaultTranslator = &PassthruTranslator{}
-
-func (p *PassthruTranslator) ToExposedValue(v any) (any, error)        { return v, nil }
-func (p *PassthruTranslator) ToCharacteristicValue(v any) (any, error) { return v, nil }
-
-var ErrTranslationError = fmt.Errorf("cannot translate value")
-
-// Translates a "binary" type exposed value to arbitrary Characteristic values
-type BoolTranslator struct{ TrueValue, FalseValue any }
-
-func (t *BoolTranslator) ToExposedValue(cVal any) (any, error) {
-	switch cVal {
-	case t.TrueValue:
-		return true, nil
-
-	case t.FalseValue:
-		return false, nil
-	}
-	return nil, ErrTranslationError
-}
-
-func (t *BoolTranslator) ToCharacteristicValue(eVal any) (any, error) {
-	bVal, ok := eVal.(bool)
-	if !ok {
-		return nil, ErrTranslationError
-	} else if bVal {
-		return t.TrueValue, nil
-	}
-	return t.FalseValue, nil
-}
-
-// Translates a numeric type exposed value to percentage Characteristic values
-type PercentageTranslator struct{ Min, Max float64 }
-
-func (t *PercentageTranslator) ToExposedValue(cVal any) (any, error) {
-	cVal2, ok := valToFloat64(cVal)
-	if !ok {
-		return nil, ErrTranslationError
-	}
-	v := t.Min + (cVal2 / 100. * (t.Max - t.Min))
-	return v, nil
-}
-
-func (t *PercentageTranslator) ToCharacteristicValue(eVal any) (any, error) {
-	eVal2, ok := valToFloat64(eVal)
-	if !ok {
-		return nil, ErrTranslationError
-	}
-	v := (eVal2 - t.Min) * 100. / (t.Max - t.Min)
-	return v, nil
-}
-
-// Converts numeric values to float64, if possible
-// Returns the converted float64 value and a bool indicating if it was successful.
-func valToFloat64(v any) (float64, bool) {
-	val := reflect.ValueOf(v)
-	switch {
-	case val.CanInt():
-		return float64(val.Int()), true
-	case val.CanUint():
-		return float64(val.Uint()), true
-	case val.CanFloat():
-		return val.Float(), true
-	}
-	return 0, false
-}
-
 //////////////////////////////
 
 // Maps a zigbee2mqtt device property into a HAP characteristic.
@@ -298,56 +240,16 @@ func (m *ExposeMapping) String() string {
 		m.ExposesEntry.Name, m.ExposesEntry.Type, m.Characteristic.Type)
 }
 
-// Converts a Characteristic value to its corresponding z2m value
+// Converts a Characteristic value to its corresponding Exposed value
 func (m *ExposeMapping) ToExposedValue(v any) (any, error) {
-	t := m.Translator
-	if t == nil {
-		t = defaultTranslator
-	}
-
-	expVal, err := t.ToExposedValue(v)
-	if err != nil {
-		return expVal, err
-	}
-
-	// additional mapping is required for "binary" types to ValueOn/Off
-	if m.ExposesEntry.Type == "binary" {
-		b, isbool := expVal.(bool)
-		if !isbool {
-			return expVal, fmt.Errorf("translated value for binary type is not bool: %[1]T %[1]v", expVal)
-		}
-
-		expVal = m.ExposesEntry.ValueOff
-		if b {
-			expVal = m.ExposesEntry.ValueOn
-		}
-	}
-
-	return expVal, err
+	return m.Translator.ToExposedValue(v)
 }
 
 // Calls c.SetValueRequest() with the translated exposed value
 // if the error code is -1, there was a translation error.
 // Otherwise it's a HAP error code
 func (m *ExposeMapping) SetCharacteristicValue(v any) (any, int) {
-	t := m.Translator
-	if t == nil {
-		t = defaultTranslator
-	}
-
-	// mapping for "binary" types to bool
-	if m.ExposesEntry.Type == "binary" {
-		switch v {
-		case m.ExposesEntry.ValueOn:
-			v = true
-		case m.ExposesEntry.ValueOff:
-			v = false
-		default:
-			return v, -1
-		}
-	}
-
-	cv, err := t.ToCharacteristicValue(v)
+	cv, err := m.Translator.ToCharacteristicValue(v)
 	if err != nil {
 		return v, -1
 	}

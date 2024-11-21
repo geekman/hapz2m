@@ -152,6 +152,7 @@ func TestMappingTranslation(t *testing.T) {
 		&BoolTranslator{
 			characteristic.ContactSensorStateContactDetected,
 			characteristic.ContactSensorStateContactNotDetected}}
+	initExposeMappings(m)
 
 	for _, test := range []struct{ e, c any }{
 		{"CONTACT", characteristic.ContactSensorStateContactDetected},
@@ -184,6 +185,7 @@ func TestMappingNumeric(t *testing.T) {
 
 	s := service.NewTemperatureSensor()
 	m := &ExposeMapping{exp, s.CurrentTemperature.C, nil}
+	initExposeMappings(m)
 
 	for _, test := range []struct {
 		v    any
