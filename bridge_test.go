@@ -17,6 +17,7 @@ const ContactSensorTemplate = `
         "interviewing": false,
 		"disabled": false,
         "supported": true,
+		"type": "EndDevice",
 		"definition": {
 			"exposes": [
                 {
@@ -41,28 +42,24 @@ func fileSize(path string) (int64, error) {
 }
 
 func TestBridgePersistState(t *testing.T) {
-	dir, err := os.MkdirTemp("", "hapz2m-bridge*")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
-
-	var m sync.Map
-	ctx := context.Background()
-
-	b := NewBridge(ctx, dir)
+	dir := t.TempDir()
+	b := NewBridge(context.Background(), dir)
 
 	// devices
 	s1 := fmt.Appendf(nil, ContactSensorTemplate, 10)
 	s2 := fmt.Appendf(nil, ContactSensorTemplate, 20)
 
-	err = b.AddDevicesFromJSON(fmt.Appendf(nil, "[%s, %s]", s1, s2))
+	err := b.AddDevicesFromJSON(fmt.Appendf(nil, "[%s, %s]", s1, s2))
 	if err != nil {
 		t.Fatalf("cannot add devices: %v", err)
+	}
+	if len(b.devices) != 2 {
+		t.Fatalf("devices not added to bridge!")
 	}
 
 	// empty state, should have no errors
 	t.Logf("loading from empty db")
+	var m sync.Map
 	if err := b.loadZ2MState(&m); err != nil {
 		t.Errorf("empty state load should not error: %v", err)
 	}
@@ -95,7 +92,7 @@ func TestBridgePersistState(t *testing.T) {
 	}
 
 	// re-create with less devices
-	b2 := NewBridge(ctx, dir)
+	b2 := NewBridge(context.Background(), t.TempDir())
 	b2.AddDevicesFromJSON(fmt.Appendf(nil, "[%s]", s1))
 
 	t.Logf("loading from initial db")
@@ -114,4 +111,26 @@ func TestBridgePersistState(t *testing.T) {
 		t.Errorf("load err: %v", err)
 	}
 
+}
+
+func TestBridgeAddCoordinator(t *testing.T) {
+	b := NewBridge(context.Background(), t.TempDir())
+
+	err := b.AddDevicesFromJSON([]byte(`
+		[{
+		"definition": null,
+		"disabled": false,
+		"endpoints": [{"foo": true}],
+		"friendly_name": "Coordinator",
+		"ieee_address": "0x0022222200000000",
+		"interview_completed": true,
+		"interviewing": false,
+		"network_address": 0,
+		"supported": true,
+		"type": "Coordinator"
+		}]
+	`))
+	if err != nil {
+		t.Fatalf("cannot add coordinator: %v", err)
+	}
 }

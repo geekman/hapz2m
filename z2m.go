@@ -76,7 +76,8 @@ func initExposeMappings(exposes ...*ExposeMapping) error {
 func createAccessory(dev *Device) (*accessory.A, []*ExposeMapping, error) {
 	if dev.Disabled ||
 		!dev.Supported ||
-		!dev.InterviewCompleted {
+		!dev.InterviewCompleted ||
+		dev.Type != "EndDevice" {
 		return nil, nil, ErrDeviceSkipped
 	}
 
@@ -278,14 +279,14 @@ type Device struct {
 	IEEEAddress        string `json:"ieee_address"`
 	InterviewCompleted bool   `json:"interview_completed"`
 	Interviewing       bool   `json:"interviewing"`
-	Manufacturer       string `json:"manufacturer"`
-	ModelId            string `json:"model_id"`
+	Manufacturer       string `json:"manufacturer,omitempty"`
+	ModelId            string `json:"model_id,omitempty"`
 	NetworkAddress     int    `json:"network_address"`
-	PowerSource        string `json:"power_source"`
-	SoftwareBuildId    string `json:"software_build_id"`
-	DateCode           string `json:"date_code"`
+	PowerSource        string `json:"power_source,omitempty"`
+	SoftwareBuildId    string `json:"software_build_id,omitempty"`
+	DateCode           string `json:"date_code,omitempty"`
 
-	Definition *DevDefinition `json:"definition"`
+	Definition *DevDefinition `json:"definition,omitempty"`
 
 	Disabled  bool   `json:"disabled"`
 	Supported bool   `json:"supported"`

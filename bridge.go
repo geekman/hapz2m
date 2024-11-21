@@ -442,6 +442,12 @@ func (br *Bridge) accessories() []*accessory.A {
 	return acc
 }
 
+func deviceJsonDescriptor(d Device) []byte {
+	d.Definition = nil
+	j, _ := json.Marshal(d)
+	return j
+}
+
 // Creates and calls AddDevice() based on the JSON definitions from zigbee2mqtt/bridge/devices.
 func (br *Bridge) AddDevicesFromJSON(devJson []byte) error {
 	var devices []Device
@@ -458,12 +464,13 @@ func (br *Bridge) AddDevicesFromJSON(devJson []byte) error {
 			if err == ErrDeviceSkipped || err == ErrUnknownDeviceType {
 				continue
 			}
-			return err
+			return fmt.Errorf("createAccessory failed: %+v %s", err, deviceJsonDescriptor(dev))
+
 		}
 
 		err = br.AddDevice(&dev, acc, exp)
 		if err != nil {
-			return err
+			return fmt.Errorf("AddDevice failed: %+v %s", err, deviceJsonDescriptor(dev))
 		}
 	}
 
