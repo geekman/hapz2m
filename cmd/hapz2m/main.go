@@ -12,7 +12,9 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"regexp"
+	"runtime/debug"
 	"syscall"
 )
 
@@ -65,7 +67,40 @@ func parseConfig(fname string) (cfg *config, err error) {
 	return
 }
 
+func readVcsRevision() string {
+	ver := ""
+	dirty := false
+	if info, ok := debug.ReadBuildInfo(); ok {
+		for _, s := range info.Settings {
+			switch s.Key {
+			case "vcs.revision":
+				if len(s.Value) >= 8 {
+					ver = s.Value[:8]
+				} else {
+					ver = s.Value
+				}
+
+			case "vcs.modified":
+				dirty = true
+			}
+		}
+		if dirty {
+			ver += "-dirty"
+		}
+		return ver
+	}
+	return "?"
+}
+
 func main() {
+	flag.Usage = func() {
+		fmt.Fprintf(flag.CommandLine.Output(), "hapz2m version %s\n"+
+			"HomeKit <-> zigbee2mqtt Bridge\n"+
+			"\nUsage: %s [options...]\n",
+			readVcsRevision(), filepath.Base(os.Args[0]))
+		flag.PrintDefaults()
+	}
+
 	flag.Parse()
 
 	// check if we are running under systemd, and if so, dont output timestamps
