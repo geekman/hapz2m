@@ -81,7 +81,7 @@ func readVcsRevision() string {
 				}
 
 			case "vcs.modified":
-				dirty = true
+				dirty = s.Value == "true"
 			}
 		}
 		if dirty {
