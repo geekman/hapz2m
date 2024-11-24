@@ -122,7 +122,7 @@ func createAccessory(dev *Device) (*accessory.A, []*ExposeMapping, error) {
 	acc := accessory.New(accessory.Info{
 		Name:         accName,
 		SerialNumber: serialNum,
-		Manufacturer: dev.Manufacturer,
+		Manufacturer: dev.Definition.Vendor,
 		Model:        dev.Definition.Model,
 		Firmware:     dev.SoftwareBuildId,
 	}, accessory.TypeUnknown)
