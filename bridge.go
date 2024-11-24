@@ -697,9 +697,34 @@ func (br *Bridge) UpdateAccessoryState(devName string, payload []byte) {
 		if BRIDGE_DEVMODE {
 			log.Printf("updating %q to %+v", prop, newVal)
 		}
-		_, errCode := mapping.SetCharacteristicValue(newVal)
-		if errCode != 0 {
-			log.Printf("unable to update characteristic value for %q: %d", prop, errCode)
+
+		// convert to Characteristic value to determine if it has changed
+		// since we don't know what the Exposed -> Characteristic mapping would be
+		newCv, err := mapping.ToCharacteristicValue(newVal)
+		if err != nil {
+			log.Printf("unable to convert characteristic value for %q: %v", prop, err)
+			continue
+		}
+
+		oldCv := mapping.SetCurrentValue(newCv)
+		changed := oldCv != newCv
+
+		// call the Set func if defined
+		doDefault := true
+		setFunc := mapping.SetCharacteristicValueFunc
+		if setFunc != nil {
+			doDefault, err = setFunc(mapping, newCv, changed)
+			if err != nil {
+				log.Printf("SetCharacteristicValueFunc for %s error: %+v", mapping, err)
+				continue
+			}
+		}
+
+		if doDefault {
+			_, errCode := mapping.Characteristic.SetValueRequest(newCv, nil)
+			if errCode != 0 {
+				log.Printf("unable to update characteristic value for %q: %d", prop, errCode)
+			}
 		}
 	}
 }

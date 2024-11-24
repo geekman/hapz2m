@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"sync/atomic"
 
 	"reflect"
 	"runtime"
@@ -228,6 +229,9 @@ func uniq[T comparable](items []T) []T {
 
 //////////////////////////////
 
+// sentinel nil value for atomic.Value
+var nilValue = &struct{}{}
+
 // Maps a zigbee2mqtt device property into a HAP characteristic.
 // Contains convenience methods to translate values between the two systems.
 // z2m "binary" types are inherently translated to bool using the ValueOn/Off properties defined,
@@ -240,6 +244,15 @@ type ExposeMapping struct {
 	Characteristic *characteristic.C
 
 	Translator MappingTranslator
+
+	// Hook function for setting Characteristic value.
+	// It returns a bool to allow/prevent the normal setting of Characteristic value.
+	// If an error is returned, the handler stops any further processing for this mapping.
+	SetCharacteristicValueFunc func(m *ExposeMapping, newVal any, changed bool) (doDefault bool, err error)
+
+	// keeps track of current value, regardless of whether it's been
+	// transferred to Characteristic or not
+	currentVal atomic.Value
 }
 
 // Creates a new ExposeMapping
@@ -262,6 +275,11 @@ func (m *ExposeMapping) ToExposedValue(v any) (any, error) {
 	return m.Translator.ToExposedValue(v)
 }
 
+// Converts an Exposed value to a Characteristic value
+func (m *ExposeMapping) ToCharacteristicValue(v any) (any, error) {
+	return m.Translator.ToCharacteristicValue(v)
+}
+
 // Calls c.SetValueRequest() with the translated exposed value
 // if the error code is -1, there was a translation error.
 // Otherwise it's a HAP error code
@@ -272,6 +290,30 @@ func (m *ExposeMapping) SetCharacteristicValue(v any) (any, int) {
 	}
 
 	return m.Characteristic.SetValueRequest(cv, nil)
+}
+
+// Gets the current value
+func (m *ExposeMapping) CurrentValue() any {
+	v := m.currentVal.Load()
+	if v == nilValue {
+		return nil
+	}
+	return v
+}
+
+// Sets the current value for this mapping.
+// This value is persisted and used for detecting changes, regardless of
+// whether it is propagated to the Characteristic
+func (m *ExposeMapping) SetCurrentValue(v any) any {
+	if v == nil {
+		v = nilValue
+	}
+
+	old := m.currentVal.Swap(v)
+	if old == nilValue {
+		old = nil
+	}
+	return old
 }
 
 //////////////////////////////
