@@ -382,8 +382,8 @@ func (br *Bridge) handleMqttMessage(_ mqtt.Client, msg mqtt.Message) {
 
 	// spawn a goroutine to handle message, since mutex might block
 	go func() {
-		if br.DebugMode {
-			log.Printf("received %s: %s", topic, payload)
+		if br.DebugMode && topic != "bridge/logging" {
+			log.Printf("received MQTT %s: %s", topic, payload)
 		}
 
 		br.hapInitMutex.RLock()
