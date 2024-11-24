@@ -624,6 +624,27 @@ func (br *Bridge) PublishState(dev *Device, payload map[string]any) error {
 	return nil
 }
 
+func parseLastSeen(ts any) (time.Time, error) {
+	var lastSeen time.Time
+	var err error
+
+	switch v := ts.(type) {
+	case float64:
+		lastSeen = time.Unix(int64(v/1000), 0)
+
+	case string:
+		if lastSeenDate, err := time.Parse(time.RFC3339, v); err == nil {
+			lastSeen = lastSeenDate
+		} else {
+			err = fmt.Errorf("invalid last_seen timestamp %v", v)
+		}
+
+	default:
+		err = fmt.Errorf("invalid last_seen %T %[1]v", v)
+	}
+	return lastSeen, err
+}
+
 // Handle MQTT message to update accessory state
 func (br *Bridge) UpdateAccessoryState(devName string, payload []byte) {
 	dev := br.devices[devName]
@@ -649,17 +670,11 @@ func (br *Bridge) UpdateAccessoryState(devName string, payload []byte) {
 
 	lastSeen := time.Now()
 	if lastSeenProp, found := newState["last_seen"]; found {
-		switch v := lastSeenProp.(type) {
-		case float64:
-			lastSeen = time.Unix(int64(v/1000), 0)
-		case string:
-			if lastSeenDate, err := time.Parse(time.RFC3339, v); err == nil {
-				lastSeen = lastSeenDate
-			} else {
-				log.Printf("invalid last_seen timestamp %v", v)
-			}
-		default:
-			log.Printf("invalid last_seen %T %[1]v", v)
+		ts, err := parseLastSeen(lastSeenProp)
+		if err == nil {
+			lastSeen = ts
+		} else {
+			log.Println(err)
 		}
 	}
 
