@@ -33,7 +33,7 @@ func createSwitchServices(dev *Device) (byte, []*service.S, []*ExposeMapping, er
 				sw.AddC(n.C)
 
 				svcs = append(svcs, sw.S)
-				exposes = append(exposes, &ExposeMapping{&f, sw.On.C, nil})
+				exposes = append(exposes, NewExposeMapping(&f, sw.On.C))
 			}
 		}
 	}

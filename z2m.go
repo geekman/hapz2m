@@ -242,6 +242,16 @@ type ExposeMapping struct {
 	Translator MappingTranslator
 }
 
+// Creates a new ExposeMapping
+func NewExposeMapping(e *ExposesEntry, c *characteristic.C) *ExposeMapping {
+	return &ExposeMapping{ExposesEntry: e, Characteristic: c}
+}
+
+// Creates a new ExposeMapping with a MappingTranslator
+func NewTranslatedExposeMapping(e *ExposesEntry, c *characteristic.C, t MappingTranslator) *ExposeMapping {
+	return &ExposeMapping{ExposesEntry: e, Characteristic: c, Translator: t}
+}
+
 func (m *ExposeMapping) String() string {
 	return fmt.Sprintf("{%q,%s -> ctyp %s}",
 		m.ExposesEntry.Name, m.ExposesEntry.Type, m.Characteristic.Type)

@@ -31,13 +31,13 @@ func createClimateServices(dev *Device) (byte, []*service.S, []*ExposeMapping, e
 			s.CurrentTemperature.SetStepValue(0.01)
 
 			svcs = append(svcs, s.S)
-			exposes = append(exposes, &ExposeMapping{&exp, s.CurrentTemperature.C, nil})
+			exposes = append(exposes, NewExposeMapping(&exp, s.CurrentTemperature.C))
 
 		case exp.Name == "humidity":
 			s := service.NewHumiditySensor()
 			s.CurrentRelativeHumidity.SetStepValue(0.01) // ditto, but 1% increments
 			svcs = append(svcs, s.S)
-			exposes = append(exposes, &ExposeMapping{&exp, s.CurrentRelativeHumidity.C, nil})
+			exposes = append(exposes, NewExposeMapping(&exp, s.CurrentRelativeHumidity.C))
 
 		case exp.Name == "pressure":
 			// TODO looks like pressure is not standard in HomeKit

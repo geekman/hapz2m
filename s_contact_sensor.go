@@ -22,10 +22,10 @@ func createContactServices(dev *Device) (byte, []*service.S, []*ExposeMapping, e
 			s := service.NewContactSensor()
 
 			svcs = append(svcs, s.S)
-			exposes = append(exposes, &ExposeMapping{&exp, s.ContactSensorState.C,
+			exposes = append(exposes, NewTranslatedExposeMapping(&exp, s.ContactSensorState.C,
 				&BoolTranslator{
 					characteristic.ContactSensorStateContactNotDetected,
-					characteristic.ContactSensorStateContactDetected}})
+					characteristic.ContactSensorStateContactDetected}))
 		}
 	}
 

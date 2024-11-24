@@ -24,7 +24,7 @@ func createMotionServices(dev *Device) (byte, []*service.S, []*ExposeMapping, er
 			s := service.NewMotionSensor()
 
 			svcs = append(svcs, s.S)
-			exposes = append(exposes, &ExposeMapping{&exp, s.MotionDetected.C, nil})
+			exposes = append(exposes, NewExposeMapping(&exp, s.MotionDetected.C))
 		}
 	}
 

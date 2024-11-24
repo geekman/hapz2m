@@ -31,12 +31,12 @@ func createLightServices(dev *Device) (byte, []*service.S, []*ExposeMapping, err
 				switch {
 				case feat.Name == "state" && feat.Type == "binary":
 					svcs = append(svcs, light.S)
-					exposes = append(exposes, &ExposeMapping{&feat, light.On.C, nil})
+					exposes = append(exposes, NewExposeMapping(&feat, light.On.C))
 
 				case feat.Name == "brightness" && feat.Type == "numeric":
 					brightness := characteristic.NewBrightness()
 					light.AddC(brightness.C)
-					exposes = append(exposes, &ExposeMapping{&feat, brightness.C, nil})
+					exposes = append(exposes, NewExposeMapping(&feat, brightness.C))
 				}
 			}
 		}

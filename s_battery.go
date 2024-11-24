@@ -22,7 +22,7 @@ func createBatteryServices(dev *Device) (byte, []*service.S, []*ExposeMapping, e
 			batt.ChargingState.SetValue(characteristic.ChargingStateNotChargeable)
 
 			svcs = append(svcs, batt.S)
-			exposes = append(exposes, &ExposeMapping{&exp, batt.BatteryLevel.C, nil})
+			exposes = append(exposes, NewExposeMapping(&exp, batt.BatteryLevel.C))
 		}
 	}
 

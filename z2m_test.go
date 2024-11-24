@@ -148,10 +148,10 @@ func TestMappingTranslation(t *testing.T) {
 	}`)
 
 	s := service.NewContactSensor()
-	m := &ExposeMapping{exp, s.ContactSensorState.C,
+	m := NewTranslatedExposeMapping(exp, s.ContactSensorState.C,
 		&BoolTranslator{
 			characteristic.ContactSensorStateContactDetected,
-			characteristic.ContactSensorStateContactNotDetected}}
+			characteristic.ContactSensorStateContactNotDetected})
 	initExposeMappings(m)
 
 	for _, test := range []struct{ e, c any }{
@@ -184,7 +184,7 @@ func TestMappingNumeric(t *testing.T) {
 	}`)
 
 	s := service.NewTemperatureSensor()
-	m := &ExposeMapping{exp, s.CurrentTemperature.C, nil}
+	m := NewExposeMapping(exp, s.CurrentTemperature.C)
 	initExposeMappings(m)
 
 	for _, test := range []struct {
