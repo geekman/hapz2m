@@ -189,6 +189,9 @@ func (br *Bridge) StartHAP() error {
 
 	if br.DebugMode {
 		haplog.Debug.Enable()
+
+		// add microseconds to log output
+		log.SetFlags(log.LstdFlags | log.Lmicroseconds)
 	}
 
 	err = br.server.ListenAndServe(br.ctx)
@@ -579,11 +582,17 @@ wait:
 				// updatedVal is float64 coz that's how Z2M JSON values are, but expVal may not be
 				mapping.ExposesEntry.Type == "numeric" && cmpFloat64Numeric(updatedVal, expVal) {
 
+				if br.DebugMode {
+					log.Printf("Z2M state %q for %s updated to %q", prop, key, updatedVal)
+				}
 				updated = true
 				break wait
 			}
 
 		case <-ctx.Done():
+			if br.DebugMode {
+				log.Printf("Z2M state update %s timed out", key)
+			}
 			break wait
 		}
 	}
