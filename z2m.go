@@ -79,7 +79,7 @@ func createAccessory(dev *Device) (*accessory.A, []*ExposeMapping, error) {
 	if dev.Disabled ||
 		!dev.Supported ||
 		!dev.InterviewCompleted ||
-		dev.Type != "EndDevice" {
+		dev.Type == "Coordinator" {
 		return nil, nil, ErrDeviceSkipped
 	}
 
