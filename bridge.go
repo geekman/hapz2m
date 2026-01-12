@@ -360,7 +360,7 @@ func (br *Bridge) saveZ2MState() error {
 }
 
 func (br *Bridge) handleMqttMessage(_ mqtt.Client, msg mqtt.Message) {
-	topic, payload := msg.Topic(), msg.Payload()
+	topic, payload, recvTime := msg.Topic(), msg.Payload(), time.Now()
 
 	// check for topic prefix and remove it
 	l := len(MQTT_TOPIC_PREFIX)
@@ -421,7 +421,7 @@ func (br *Bridge) handleMqttMessage(_ mqtt.Client, msg mqtt.Message) {
 					log.Print("applying deferred updates...")
 					br.pendingUpdates.Range(func(k, v any) bool {
 						devName := k.(string)
-						br.UpdateAccessoryState(devName, v.([]byte))
+						br.UpdateAccessoryState(devName, v.([]byte), recvTime)
 						return true // continue
 					})
 
@@ -436,7 +436,7 @@ func (br *Bridge) handleMqttMessage(_ mqtt.Client, msg mqtt.Message) {
 				br.pendingUpdates.Store(topic, payload)
 			}
 		} else if !isBridgeTopic {
-			br.UpdateAccessoryState(topic, payload)
+			br.UpdateAccessoryState(topic, payload, recvTime)
 		}
 	}()
 }
@@ -655,7 +655,7 @@ func parseLastSeen(ts any) (time.Time, error) {
 }
 
 // Handle MQTT message to update accessory state
-func (br *Bridge) UpdateAccessoryState(devName string, payload []byte) {
+func (br *Bridge) UpdateAccessoryState(devName string, payload []byte, tstamp time.Time) {
 	dev := br.devices[devName]
 	if dev == nil {
 		if br.DebugMode || BRIDGE_DEVMODE {
@@ -677,7 +677,7 @@ func (br *Bridge) UpdateAccessoryState(devName string, payload []byte) {
 		return
 	}
 
-	lastSeen := time.Now()
+	lastSeen := tstamp
 	if lastSeenProp, found := newState["last_seen"]; found {
 		ts, err := parseLastSeen(lastSeenProp)
 		if err == nil {
