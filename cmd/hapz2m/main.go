@@ -68,36 +68,20 @@ func parseConfig(fname string) (cfg *config, err error) {
 }
 
 func readVcsRevision() string {
-	ver := ""
-	dirty := false
 	if info, ok := debug.ReadBuildInfo(); ok {
-		for _, s := range info.Settings {
-			switch s.Key {
-			case "vcs.revision":
-				if len(s.Value) >= 8 {
-					ver = s.Value[:8]
-				} else {
-					ver = s.Value
-				}
-
-			case "vcs.modified":
-				dirty = s.Value == "true"
-			}
-		}
-		if dirty {
-			ver += "-dirty"
-		}
-		return ver
+		return info.Main.Version
 	}
 	return "?"
 }
 
 func main() {
+	versionStr := fmt.Sprintf("hapz2m version %s", readVcsRevision())
+
 	flag.Usage = func() {
-		fmt.Fprintf(flag.CommandLine.Output(), "hapz2m version %s\n"+
+		fmt.Fprintf(flag.CommandLine.Output(), versionStr+"\n"+
 			"HomeKit <-> zigbee2mqtt Bridge\n"+
 			"\nUsage: %s [options...]\n",
-			readVcsRevision(), filepath.Base(os.Args[0]))
+			filepath.Base(os.Args[0]))
 		flag.PrintDefaults()
 	}
 
@@ -140,6 +124,8 @@ func main() {
 	}
 
 	br.Interfaces = cfg.Interfaces
+
+	log.Println(versionStr)
 
 	err = br.ConnectMQTT()
 	if err != nil {
