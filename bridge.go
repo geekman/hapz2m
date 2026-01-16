@@ -199,8 +199,11 @@ func (br *Bridge) StartHAP() error {
 	if br.DebugMode {
 		haplog.Debug.Enable()
 
-		// add microseconds to log output
-		log.SetFlags(log.LstdFlags | log.Lmicroseconds)
+		if BRIDGE_DEVMODE {
+			// add microseconds to log output
+			log.SetFlags(log.LstdFlags | log.Lmicroseconds)
+			log.Println("Dev mode enabled")
+		}
 	}
 
 	err = br.server.ListenAndServe(br.ctx)
