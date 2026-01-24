@@ -2,6 +2,7 @@ package main
 
 import (
 	"hapz2m"
+	"strings"
 
 	"context"
 	"encoding/json"
@@ -40,7 +41,7 @@ type config struct {
 
 	Pin string
 
-	Server, Username, Password string
+	Server, Username, Password, TopicPrefix string
 }
 
 func parseConfig(fname string) (cfg *config, err error) {
@@ -52,7 +53,9 @@ func parseConfig(fname string) (cfg *config, err error) {
 	// remove line comments, json.Unmarshal can't parse them
 	cfgStr = CONFIG_COMMENTS_RE.ReplaceAllLiteral(cfgStr, []byte{})
 
-	cfg = &config{}
+	cfg = &config{
+		TopicPrefix: "zigbee2mqtt/", // use default Z2M prefix if not defined in the configuration
+	}
 	if err = json.Unmarshal(cfgStr, cfg); err != nil {
 		return
 	}
@@ -103,6 +106,7 @@ func main() {
 	br.Server = cfg.Server
 	br.Username = cfg.Username
 	br.Password = cfg.Password
+	br.TopicPrefix = cfg.TopicPrefix
 	br.DebugMode = *debugMode
 	br.QuietMode = *quietMode
 
@@ -122,6 +126,12 @@ func main() {
 		}
 		br.ListenAddr = cfg.ListenAddr
 	}
+
+	// Validate that TopicPrefix is valid (must end in a /)
+	if cfg.TopicPrefix != "" && !strings.HasSuffix(cfg.TopicPrefix, "/") {
+		log.Fatalf("invalid TopicPrefix: must end with a /")
+	}
+	br.TopicPrefix = cfg.TopicPrefix
 
 	br.Interfaces = cfg.Interfaces
 

@@ -36,6 +36,9 @@ The MQTT broker that Zigbee2MQTT connects to is specified using the following:
 - Server
 - Username
 - Password
+- TopicPrefix
+
+TopicPrefix is an optional value, and will default to `zigbee2mqtt/` if undefined. This should mirror your Zigbee2MQTT `base_topic` value with a trailing slash.
 
 Additionally, these options control networking aspects for the bridge:
 
@@ -77,4 +80,3 @@ PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program. If not, see <https://www.gnu.org/licenses/>.
-

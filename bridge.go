@@ -33,8 +33,6 @@ var (
 )
 
 const (
-	MQTT_TOPIC_PREFIX = "zigbee2mqtt/"
-
 	// Store name for persisting zigbee2mqtt state
 	Z2M_STATE_STORE = "z2m_state"
 
@@ -53,9 +51,10 @@ const BRIDGE_DEVMODE = false
 
 type Bridge struct {
 	// MQTT broker and credentials
-	Server   string
-	Username string
-	Password string
+	Server      string
+	Username    string
+	Password    string
+	TopicPrefix string
 
 	// address and interfaces to bind to
 	ListenAddr string
@@ -252,7 +251,7 @@ func (br *Bridge) ConnectMQTT() error {
 	opts.SetOnConnectHandler(func(c mqtt.Client) {
 		log.Printf("connected to MQTT broker")
 
-		tok := c.Subscribe(MQTT_TOPIC_PREFIX+"#", 0, br.handleMqttMessage)
+		tok := c.Subscribe(br.TopicPrefix+"#", 0, br.handleMqttMessage)
 		if tok.Wait() && tok.Error() != nil {
 			log.Fatal(tok.Error())
 		}
@@ -385,8 +384,8 @@ func (br *Bridge) handleMqttMessage(_ mqtt.Client, msg mqtt.Message) {
 	topic, payload, recvTime := msg.Topic(), msg.Payload(), time.Now()
 
 	// check for topic prefix and remove it
-	l := len(MQTT_TOPIC_PREFIX)
-	if len(topic) <= l || topic[:l] != MQTT_TOPIC_PREFIX {
+	l := len(br.TopicPrefix)
+	if len(topic) <= l || topic[:l] != br.TopicPrefix {
 		return
 	}
 	topic = topic[l:]
@@ -643,7 +642,7 @@ func cmpFloat64Numeric(f, n any) bool {
 
 // Publish to the MQTT broker for the specific device
 func (br *Bridge) PublishState(dev *Device, payload map[string]any) error {
-	topic := MQTT_TOPIC_PREFIX + dev.FriendlyName + "/set"
+	topic := br.TopicPrefix + dev.FriendlyName + "/set"
 	jsonPayload, err := json.Marshal(payload)
 	if err != nil {
 		return err
