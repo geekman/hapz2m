@@ -1,0 +1,73 @@
+name: Build and upload binaries
+on:
+  release:
+    types: [published]
+  push:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build binaries
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - {GOOS: linux, GOARCH: amd64}
+          - {GOOS: linux, GOARCH: arm64}
+          - {GOOS: linux, GOARCH: arm, GOARM: 6}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Build binary
+        run: |
+          VERSION="$(git describe --tags)"
+          DIR="$(mktemp -d)"
+          mkdir "$DIR/hapz2m"
+          set -x
+          go build -v -o "$DIR/hapz2m" -trimpath -ldflags="-s -w" ./cmd/...
+          cp -v LICENSE.md README.md hapz2m.conf "$DIR/hapz2m"
+          tar -czvf "hapz2m-$VERSION-$GOOS-$GOARCH.tar.gz" -C "$DIR" hapz2m
+        env:
+          CGO_ENABLED: 0
+          GOOS: ${{ matrix.GOOS }}
+          GOARCH: ${{ matrix.GOARCH }}
+          GOARM: ${{ matrix.GOARM }}
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: hapz2m-build-${{ matrix.GOOS }}-${{ matrix.GOARCH }}
+          path: hapz2m-*
+
+  upload:
+    name: Upload binaries
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+    needs: [build]
+    permissions:
+      contents: write
+    steps:
+      - name: Download workflow artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: hapz2m-build-*
+          merge-multiple: true
+
+      - name: Upload release binaries
+        run: gh release upload "$GITHUB_REF_NAME" hapz2m-*
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+
