@@ -13,6 +13,7 @@ import (
 
 	"context"
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -79,6 +80,7 @@ type Bridge struct {
 
 	mqttClient   mqtt.Client
 	mqttMessages chan *mqttMessage
+	instanceId   string
 
 	updateListeners sync.Map
 }
@@ -98,6 +100,10 @@ type BridgeDevice struct {
 
 // Creates and initializes a Bridge.
 func NewBridge(ctx context.Context, storeDir string) *Bridge {
+	// generate an instance ID
+	instanceId := make([]byte, 6)
+	rand.Read(instanceId)
+
 	br := &Bridge{
 		ctx:   ctx,
 		store: hap.NewFsStore(storeDir),
@@ -106,6 +112,7 @@ func NewBridge(ctx context.Context, storeDir string) *Bridge {
 		devices:   make(map[string]*BridgeDevice),
 
 		mqttMessages: make(chan *mqttMessage, 100),
+		instanceId:   base64.URLEncoding.EncodeToString(instanceId),
 	}
 
 	br.bridgeAcc = accessory.NewBridge(accessory.Info{
@@ -242,7 +249,7 @@ func (br *Bridge) ConnectMQTT() error {
 		AddBroker(br.Server).
 		SetUsername(br.Username).
 		SetPassword(br.Password).
-		SetClientID("hap-z2m").
+		SetClientID("hapz2m-" + br.instanceId).
 		SetDialer(&net.Dialer{KeepAlive: -1}).
 		SetKeepAlive(60 * time.Second).
 		SetPingTimeout(2 * time.Second).
@@ -251,17 +258,22 @@ func (br *Bridge) ConnectMQTT() error {
 	opts.SetOnConnectHandler(func(c mqtt.Client) {
 		log.Printf("connected to MQTT broker")
 
-		tok := c.Subscribe(br.TopicPrefix+"#", 0, br.handleMqttMessage)
+		topic := br.TopicPrefix + "#"
+		tok := c.Subscribe(topic, 0, br.handleMqttMessage)
 		if tok.Wait() && tok.Error() != nil {
 			log.Fatal(tok.Error())
 		}
 
-		log.Printf("subscribed to MQTT topic")
+		log.Printf("subscribed to MQTT topic %q", topic)
 	})
 
 	opts.SetConnectionAttemptHandler(func(broker *url.URL, cfg *tls.Config) *tls.Config {
 		log.Printf("connecting to MQTT %s...", broker)
 		return cfg
+	})
+
+	opts.SetConnectionLostHandler(func(_ mqtt.Client, err error) {
+		log.Printf("MQTT server disconnected: %v", err)
 	})
 
 	br.mqttClient = mqtt.NewClient(opts)
