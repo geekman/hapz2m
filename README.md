@@ -16,6 +16,7 @@ Currently only supports the types of Zigbee devices I have:
 - Motion sensors
 - Wall switch
 - Dimmer, or dimmable light bulbs
+- Wireless button
 
 If you do use this software, note that it's in development and may contains bugs,
 or may even burn your house down. I offer no warranty, but you are welcome to file bugs.
@@ -67,7 +68,7 @@ License
 
 hap-z2m is licensed under the GNU General Public License v3.
 
-Copyright (C) 2023-24 Darell Tan
+Copyright (C) 2023-26 Darell Tan
 
 This program is free software: you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software

@@ -121,3 +121,24 @@ func valToFloat64(v any) (float64, bool) {
 	}
 	return 0, false
 }
+
+// Translates an string enum type exposed value to specified Characteristic values
+type EnumTranslator struct{ EnumMap map[string]any }
+
+func (t *EnumTranslator) ToExposedValue(cVal any) (any, error) {
+	for k, v := range t.EnumMap {
+		if v == cVal {
+			return k, nil
+		}
+	}
+	return nil, ErrTranslationError
+}
+
+func (t *EnumTranslator) ToCharacteristicValue(eVal any) (any, error) {
+	if sVal, ok := eVal.(string); ok {
+		if v, ok := t.EnumMap[sVal]; ok {
+			return v, nil
+		}
+	}
+	return nil, ErrTranslationError
+}
