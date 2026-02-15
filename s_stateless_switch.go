@@ -33,7 +33,9 @@ func createStatelesswitchServices(dev *Device) (byte, []*service.S, []*ExposeMap
 				"quadruple": 255,
 				"release":   255,
 			}}
-			exposes = append(exposes, NewTranslatedExposeMapping(&exp, sw.ProgrammableSwitchEvent.C, t))
+			m := NewTranslatedExposeMapping(&exp, sw.ProgrammableSwitchEvent.C, t)
+			m.IsTransient = true
+			exposes = append(exposes, m)
 		}
 	}
 

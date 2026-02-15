@@ -242,6 +242,7 @@ var nilValue = &struct{}{}
 type ExposeMapping struct {
 	ExposesEntry   *ExposesEntry
 	Characteristic *characteristic.C
+	IsTransient    bool
 
 	Translator MappingTranslator
 

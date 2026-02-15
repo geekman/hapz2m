@@ -352,8 +352,8 @@ func (br *Bridge) saveZ2MState() error {
 		devState := make(map[string]any)
 
 		for prop, mapping := range dev.Mappings {
-			// don't bother persisting property if it is "zero"
-			if reflect.ValueOf(mapping.Characteristic.Val).IsZero() {
+			// don't bother persisting property if it is "zero", or is transient
+			if reflect.ValueOf(mapping.Characteristic.Val).IsZero() || mapping.IsTransient {
 				continue
 			}
 

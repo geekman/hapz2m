@@ -41,6 +41,43 @@ func fileSize(path string) (int64, error) {
 	return sz, err
 }
 
+func TestBridgePersistTransientState(t *testing.T) {
+	dir := t.TempDir()
+	b := NewBridge(context.Background(), dir)
+
+	// devices
+	s := fmt.Appendf(nil, ContactSensorTemplate, 10)
+
+	err := b.AddDevicesFromJSON(fmt.Appendf(nil, "[%s]", s))
+	if err != nil {
+		t.Fatalf("cannot add devices: %v", err)
+	}
+	if len(b.devices) != 1 {
+		t.Fatalf("devices not added to bridge!")
+	}
+
+	var dev *BridgeDevice
+	for _, dev = range b.devices {
+		break
+	}
+
+	// set non-default state
+	dev.Mappings["contact"].Characteristic.Val = 1
+
+	// make property transient
+	dev.Mappings["contact"].IsTransient = true
+
+	t.Logf("persisting state")
+	if err := b.saveZ2MState(); err != nil {
+		t.Errorf("can't persist state: %v", err)
+	}
+
+	_, err = os.ReadFile(dir + "/" + Z2M_STATE_STORE)
+	if !(err != nil && os.IsNotExist(err)) {
+		t.Fatalf("state was persisted when it shouldn't be")
+	}
+}
+
 func TestBridgePersistState(t *testing.T) {
 	dir := t.TempDir()
 	b := NewBridge(context.Background(), dir)
