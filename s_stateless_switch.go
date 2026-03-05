@@ -28,10 +28,10 @@ func createStatelesswitchServices(dev *Device) (byte, []*service.S, []*ExposeMap
 				"double": characteristic.ProgrammableSwitchEventDoublePress,
 				"hold":   characteristic.ProgrammableSwitchEventLongPress,
 
-				// unsupported actions, map to invalid value and hope iOS doesnt explode
-				"triple":    255,
-				"quadruple": 255,
-				"release":   255,
+				// unsupported actions, map to nil to ignore
+				"triple":    nil,
+				"quadruple": nil,
+				"release":   nil,
 			}}
 			m := NewTranslatedExposeMapping(&exp, sw.ProgrammableSwitchEvent.C, t)
 			m.IsTransient = true

@@ -217,3 +217,54 @@ func TestMappingNumeric(t *testing.T) {
 		}
 	}
 }
+
+func TestMappingEnum(t *testing.T) {
+	exp := exposeMappingFromJson(`{
+		"access": 1,
+		"name": "Action",
+		"property": "action",
+		"type": "enum",
+		"values": ["single", "double", "triple"]
+	}`)
+
+	s := service.NewStatelessProgrammableSwitch()
+
+	tmap := &EnumTranslator{map[string]any{
+		"single": 3,
+		"double": 4,
+		"hold":   5,
+
+		// ignored values
+		"triple": nil,
+	}}
+	m := NewTranslatedExposeMapping(exp, s.ProgrammableSwitchEvent.C, tmap)
+	initExposeMappings(m)
+
+	for _, test := range []struct {
+		v  any
+		cv any
+	}{
+		{"single", 3},
+		{"double", 4},
+
+		{"triple", 4}, // ignore values, should have no change
+		{"hold", 5},
+	} {
+		_, errCode := m.SetCharacteristicValue(test.v)
+		if errCode != 0 {
+			t.Fatalf("errCode mapping %s: %d", test.v, errCode)
+		}
+		cv := s.ProgrammableSwitchEvent.Value()
+		t.Logf("cval for %s: %d", test.v, cv)
+
+		if test.cv != cv {
+			t.Fatalf("mapping mismatch for %q. want %d, got %d", test.v, test.cv, cv)
+		}
+	}
+
+	// test for error
+	_, errCode := m.SetCharacteristicValue("invalid")
+	if errCode != -1 {
+		t.Fatalf("expected error for invalid value, but got %d", errCode)
+	}
+}

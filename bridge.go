@@ -761,7 +761,9 @@ func (br *Bridge) UpdateAccessoryState(devName string, payload []byte, tstamp ti
 		// since we don't know what the Exposed -> Characteristic mapping would be
 		newCv, err := mapping.ToCharacteristicValue(newVal)
 		if err != nil {
-			log.Printf("unable to convert characteristic value for %q: %v", prop, err)
+			if err != ErrIgnoreValue {
+				log.Printf("unable to convert characteristic value for %q: %v", prop, err)
+			}
 			continue
 		}
 

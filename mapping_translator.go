@@ -62,6 +62,9 @@ func (t *FlippedTranslator) ToCharacteristicValue(eVal any) (any, error) {
 
 var ErrTranslationError = fmt.Errorf("cannot translate value")
 
+// "error" value to use when a translated value should result in no change (i.e. a no-op)
+var ErrIgnoreValue = fmt.Errorf("ignored value")
+
 // Translates a binary type exposed value to specified Characteristic T/F values
 type BoolTranslator struct{ TrueValue, FalseValue any }
 
@@ -123,11 +126,12 @@ func valToFloat64(v any) (float64, bool) {
 }
 
 // Translates an string enum type exposed value to specified Characteristic values
+// If the mapping returns a nil value, the value won't be propagated to the Characteristic
 type EnumTranslator struct{ EnumMap map[string]any }
 
 func (t *EnumTranslator) ToExposedValue(cVal any) (any, error) {
 	for k, v := range t.EnumMap {
-		if v == cVal {
+		if v != nil && v == cVal {
 			return k, nil
 		}
 	}
@@ -137,6 +141,9 @@ func (t *EnumTranslator) ToExposedValue(cVal any) (any, error) {
 func (t *EnumTranslator) ToCharacteristicValue(eVal any) (any, error) {
 	if sVal, ok := eVal.(string); ok {
 		if v, ok := t.EnumMap[sVal]; ok {
+			if v == nil {
+				return nil, ErrIgnoreValue
+			}
 			return v, nil
 		}
 	}

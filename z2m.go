@@ -287,6 +287,9 @@ func (m *ExposeMapping) ToCharacteristicValue(v any) (any, error) {
 func (m *ExposeMapping) SetCharacteristicValue(v any) (any, int) {
 	cv, err := m.Translator.ToCharacteristicValue(v)
 	if err != nil {
+		if err == ErrIgnoreValue {
+			return v, 0
+		}
 		return v, -1
 	}
 
