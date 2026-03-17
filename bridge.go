@@ -11,6 +11,7 @@ import (
 	"crypto/tls"
 	"net/url"
 
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/base64"
@@ -422,7 +423,7 @@ func (br *Bridge) handleMqttMessage(_ mqtt.Client, msg mqtt.Message) {
 
 	isBridgeTopic := strings.HasPrefix(topic, "bridge/")
 
-	if br.DebugMode && topic != "bridge/logging" {
+	if br.DebugMode && (topic != "bridge/logging" || bytes.Contains(payload, []byte(`"error"`))) {
 		log.Printf("received MQTT %s: %s", topic, payload)
 	}
 
