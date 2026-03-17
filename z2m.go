@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"sync"
 	"sync/atomic"
+	"time"
 
 	"reflect"
 	"runtime"
@@ -318,6 +320,39 @@ func (m *ExposeMapping) SetCurrentValue(v any) any {
 		old = nil
 	}
 	return old
+}
+
+// Wire up the ExposeMapping to debounce a specified value for a delayed duration.
+// Typically used to delay, for example, setting "no motion" until there's no
+// further value changes for the sepcified duration. All other non-debounced
+// value changes go through immediately.
+func (m *ExposeMapping) SetupDebouncedValue(debounceValue any, delay time.Duration) {
+	// lock makes sure Timer and setFunc aren't stepping over each other
+	lock := &sync.Mutex{}
+
+	tm := time.AfterFunc(1*time.Minute, func() {
+		lock.Lock()
+		defer lock.Unlock()
+
+		m.Characteristic.SetValueRequest(debounceValue, nil)
+	})
+	tm.Stop()
+
+	m.SetCharacteristicValueFunc = func(m *ExposeMapping, newVal any, changed bool) (bool, error) {
+		lock.Lock()
+		defer lock.Unlock()
+
+		if newVal != debounceValue {
+			tm.Stop()
+		} else {
+			if changed {
+				tm.Reset(delay)
+			}
+			return false, nil
+		}
+
+		return true, nil
+	}
 }
 
 //////////////////////////////
