@@ -96,6 +96,10 @@ type BridgeDevice struct {
 	Accessory *accessory.A
 	Mappings  map[string]*ExposeMapping
 	LastSeen  time.Time
+
+	mu                sync.Mutex
+	LastQueried       time.Time
+	UnansweredQueries int
 }
 
 // Creates and initializes a Bridge.
@@ -521,6 +525,16 @@ func (br *Bridge) AddDevicesFromJSON(devJson []byte) error {
 	return nil
 }
 
+// Query back-off periods for unresponsive devices
+var queryBackoffDurations = []time.Duration{
+	30 * time.Second,
+	30 * time.Second,
+	1 * time.Minute,
+	10 * time.Minute,
+	1 * time.Hour,
+	24 * time.Hour,
+}
+
 // Adds a device to this Bridge
 func (br *Bridge) AddDevice(dev *Device, acc *accessory.A, mappings []*ExposeMapping) error {
 	name := dev.FriendlyName
@@ -538,7 +552,12 @@ func (br *Bridge) AddDevice(dev *Device, acc *accessory.A, mappings []*ExposeMap
 		em[prop] = m
 	}
 
-	brdev := &BridgeDevice{dev, acc, em, time.Date(2000, 01, 01, 23, 59, 00, 0, time.Local)}
+	brdev := &BridgeDevice{
+		Device:    dev,
+		Accessory: acc,
+		Mappings:  em,
+		LastSeen:  time.Date(2000, 01, 01, 23, 59, 00, 0, time.Local),
+	}
 
 	// wire up accessory's remote value update functions
 	for _, m := range mappings {
@@ -559,6 +578,31 @@ func (br *Bridge) AddDevice(dev *Device, acc *accessory.A, mappings []*ExposeMap
 
 		m.Characteristic.ValueRequestFunc = func(req *http.Request) (any, int) {
 			lastSeenSince := time.Since(brdev.LastSeen)
+
+			// query device state if it hasn't reported in a while
+			if lastSeenSince >= Z2M_LAST_SEEN_TIMEOUT/2 && m.ExposesEntry.IsStateGettable() && acc.Type != accessory.TypeSensor {
+				brdev.mu.Lock()
+				defer brdev.mu.Unlock()
+
+				// perform re-query, provided we are past backoff wait time
+				if time.Since(brdev.LastQueried) >= queryBackoffDurations[brdev.UnansweredQueries] {
+					if err := br.QueryState(brdev); err != nil {
+						log.Printf("unable to query %s: %s", dev.FriendlyName, err)
+					}
+
+					brdev.LastQueried = time.Now()
+					if brdev.UnansweredQueries < len(queryBackoffDurations)-1 {
+						brdev.UnansweredQueries++
+
+						if brdev.UnansweredQueries == len(queryBackoffDurations)-1 {
+							log.Printf("device %s is unresponsive", dev.FriendlyName)
+						} else if brdev.UnansweredQueries > 1 || br.DebugMode {
+							log.Printf("device %s has not responded, query attempt %d",
+								dev.FriendlyName, brdev.UnansweredQueries)
+						}
+					}
+				}
+			}
 
 			errCode := 0
 			if lastSeenSince >= Z2M_LAST_SEEN_TIMEOUT {
@@ -668,6 +712,37 @@ func (br *Bridge) PublishState(dev *Device, payload map[string]any) error {
 	return nil
 }
 
+var ErrDeviceNotQueryable = fmt.Errorf("device does not have queryable properties")
+
+// Queries the device state over MQTT for the specific device.
+// This operation is asynchronous, Z2M only replies after it hears back from the device.
+// If the device does not have queryable properties, ErrDeviceNotQueryable is returned
+func (br *Bridge) QueryState(brdev *BridgeDevice) error {
+	jmap := make(map[string]string)
+	for prop, e := range brdev.Mappings {
+		if e.ExposesEntry.IsStateGettable() {
+			jmap[prop] = ""
+		}
+	}
+	if len(jmap) == 0 {
+		return ErrDeviceNotQueryable
+	}
+
+	jsonPayload, err := json.Marshal(jmap)
+	if err != nil {
+		return err
+	}
+
+	topic := br.TopicPrefix + brdev.Device.FriendlyName + "/get"
+
+	if br.DebugMode {
+		log.Printf("sending query %s: %s", topic, jsonPayload)
+	}
+
+	br.mqttClient.Publish(topic, 0, false, jsonPayload)
+	return nil
+}
+
 func parseLastSeen(ts any) (time.Time, error) {
 	var lastSeen time.Time
 	var err error
@@ -726,6 +801,12 @@ func (br *Bridge) UpdateAccessoryState(devName string, payload []byte, tstamp ti
 	if lastSeen.After(dev.LastSeen) {
 		//log.Printf("updating last seen for %s to %s", devName, lastSeen)
 		dev.LastSeen = lastSeen
+
+		dev.mu.Lock()
+		if dev.UnansweredQueries > 0 {
+			dev.UnansweredQueries = 0
+		}
+		dev.mu.Unlock()
 	}
 
 	for prop, mapping := range dev.Mappings {
