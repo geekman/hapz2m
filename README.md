@@ -63,6 +63,15 @@ Checking the Zigbee2MQTT persisted state:
 
     jq -r 'map_values(@base64d)' < /var/lib/hapz2m/db/z2m_state
 
+To remove all pairings and make the bridge available for re-pairing again,
+delete all pairings and restart hapz2m:
+
+    rm /var/lib/hapz2m/db/*.pairing
+
+If you are not getting Home notifications, you can try restarting hapz2m and
+also your home hub (i.e. HomePod or Apple TV). They are the proxy for
+communicating with HAP devices/bridges.
+
 License
 ========
 
